@@ -1,14 +1,15 @@
 import json
 import urllib.parse
 import psycopg2
+import boto3
 
 print('Loading GlobalSalesData function')
 
 dbname = ''
 host = ''
+cluster_id = ''
 port = ''
 user = ''
-password = ''
 iam_role = ''
 
 # This function will produce a series of reports (unload statements)
@@ -18,7 +19,8 @@ iam_role = ''
 
 def lambda_handler(event, context):
     print("Received event: " + json.dumps(event, indent=2))
-    company_id = event['responsePayload']['company_id']
+    message = json.loads(event['Records'][0]['Sns']['Message'])
+    company_id = message['responsePayload']['company_id']
 
     #-------------------------------------
     # Define each unload  SQL
@@ -82,8 +84,14 @@ def lambda_handler(event, context):
         {file_info};"
 
     try:
+        client = boto3.client('redshift')
+        cluster_creds = client.get_cluster_credentials(DbUser=user,
+                                                       DbName=dbname,
+                                                       ClusterIdentifier=cluster_id,
+                                                       AutoCreate=False)
         con = psycopg2.connect(dbname=dbname, host=host,
-                               port=port, user=user, password=password)
+                               port=port, user=cluster_creds['DbUser'], 
+                               password=cluster_creds['DbPassword'])
         cur = con.cursor()
         print ("Executing qryAvgIndSales")
         cur.execute(qryAvgIndSales)

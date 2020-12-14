@@ -1,19 +1,21 @@
 import json
 import urllib.parse
 import psycopg2
+import boto3
 
 print('Loading function')
 
 dbname = ''
 host = ''
+cluster_id = ''
 port = ''
 user = ''
-password = ''
 iam_role = ''
 
 def lambda_handler(event, context):
     print("Received event: " + json.dumps(event, indent=2))
-    company_id = event['responsePayload']['company_id']
+    message = json.loads(event['Records'][0]['Sns']['Message'])
+    company_id = message['responsePayload']['company_id']
     
     unload_query=f"UNLOAD (' \
     select sls.PRODUCT_LINE, sls.payment, sum(total) total_sales \
@@ -26,8 +28,14 @@ def lambda_handler(event, context):
     CSV delimiter ',' HEADER PARALLEL OFF allowoverwrite;"
 
     try:
-        con=psycopg2.connect(dbname=dbname, host=host, 
-        port=port, user=user, password=password)
+        client = boto3.client('redshift')
+        cluster_creds = client.get_cluster_credentials(DbUser=user,
+                                                       DbName=dbname,
+                                                       ClusterIdentifier=cluster_id,
+                                                       AutoCreate=False)
+        con = psycopg2.connect(dbname=dbname, host=host,
+                               port=port, user=cluster_creds['DbUser'], 
+                               password=cluster_creds['DbPassword'])
         cur = con.cursor()
         cur.execute(unload_query)
         con.commit()

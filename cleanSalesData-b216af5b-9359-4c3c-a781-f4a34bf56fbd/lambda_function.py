@@ -1,14 +1,15 @@
 import json
 import urllib.parse
 import psycopg2
+import boto3
 
 print('Loading function')
 
-dbname= ''
-host=''
-port= ''
-user= ''
-password= ''
+dbname = 'dev'
+host = 'examplecluster.c5xajgza5xzb.us-east-1.redshift.amazonaws.com'
+cluster_id = 'examplecluster'
+port = '5439'
+user = 'awsuser'
 
 def lambda_handler(event, context):
     print("Received event: " + json.dumps(event, indent=2))
@@ -16,8 +17,14 @@ def lambda_handler(event, context):
     table_name = event['responsePayload']['table_name']
 
     try:
-        con=psycopg2.connect(dbname=dbname, host=host, 
-        port=port, user=user, password=password)
+        client = boto3.client('redshift')
+        cluster_creds = client.get_cluster_credentials(DbUser=user,
+                                                       DbName=dbname,
+                                                       ClusterIdentifier=cluster_id,
+                                                       AutoCreate=False)
+        con = psycopg2.connect(dbname=dbname, host=host,
+                               port=port, user=cluster_creds['DbUser'], 
+                               password=cluster_creds['DbPassword'])
         cur = con.cursor()
         
         clean_query=f"INSERT INTO supermarket_sales \

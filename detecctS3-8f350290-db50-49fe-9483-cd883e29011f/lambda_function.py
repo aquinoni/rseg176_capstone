@@ -10,30 +10,37 @@ print('Loading function')
 
 dbname = ''
 host = ''
+cluster_id = ''
 port = ''
 user = ''
-password = ''
 iam_role = ''
 s3 = boto3.client('s3')
-con=None
-cur=None
-table_name=None
-backup_bucket="rseg176-backup"
+backup_bucket = "rseg176-backup"
 
 def lambda_handler(event, context):
     print("Received event: " + json.dumps(event, indent=2))
-    
+    con = None
+    cur = None
+    table_name=None
     bucket = event['Records'][0]['s3']['bucket']['name']
     key = urllib.parse.unquote_plus(event['Records'][0]['s3']['object']['key'], encoding='utf-8')
     company_id = key.split('/')[1]
+    
     print("KEY: "+key)
     print("BUCKET: "+bucket)
     print("COMPANY: "+company_id)
-    #raise Exception("Fail Fast")
+    
     try:
-        con=psycopg2.connect(dbname=dbname, host=host, 
-        port=port, user=user, password=password)
+        client = boto3.client('redshift')
+        cluster_creds = client.get_cluster_credentials(DbUser=user,
+                                                       DbName=dbname,
+                                                       ClusterIdentifier=cluster_id,
+                                                       AutoCreate=False)
+        con = psycopg2.connect(dbname=dbname, host=host,
+                               port=port, user=cluster_creds['DbUser'], 
+                               password=cluster_creds['DbPassword'])
         cur = con.cursor()
+        print("connected to redshift")
         
     except Exception as e:
         print(e)
@@ -41,7 +48,7 @@ def lambda_handler(event, context):
         raise e
         
     try:
-        # generate randoom string lowercase
+        # generate random string lowercase
         letters = string.ascii_lowercase
         table_name=f'temp_{company_id}_sales_' + ''.join(random.choice(letters) for i in range(10))
         print(table_name)
