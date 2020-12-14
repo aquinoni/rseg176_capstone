@@ -5,11 +5,11 @@ import boto3
 
 print('Loading function')
 
-dbname = 'dev'
-host = 'examplecluster.c5xajgza5xzb.us-east-1.redshift.amazonaws.com'
-cluster_id = 'examplecluster'
-port = '5439'
-user = 'awsuser'
+dbname = ''
+host = ''
+cluster_id = ''
+port = ''
+user = ''
 
 def lambda_handler(event, context):
     print("Received event: " + json.dumps(event, indent=2))
